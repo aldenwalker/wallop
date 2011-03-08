@@ -1,0 +1,18 @@
+Version 0.7 - January 14, 2011 by Alden
+  - implemented saving simple graph to eps file
+
+Version 0.6 - January 3, 2011 by Alden
+  - fixed segfault on file-not-found for loading and saving
+  - included OSX compilation in readme and makefiles
+
+Version 0.5 - December 6, 2010 by Alden
+  - edges are smooth for 2-valent vertices
+  - labels try not to overlap with edges
+  - calculates scl inequality
+  - simplified graph picture when dragging vertices
+
+TO DO:
+  - Optimizing the whole graph sucks at positioning the vertices
+  - Move multiple vertices at once?
+  - with larger graphs, optimization isn't really done when it thinks it is
+    (hitting "smooth arcs" multiple times is needed)

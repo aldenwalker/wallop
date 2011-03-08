@@ -1,0 +1,42 @@
+wallop
+Version 0.7 beta
+Copyright GPL 2010 by Alden Walker
+awalker@caltech.edu
+
+Wallop is a Gtk+ 2.0 application to display fatgraphs, especially the output of
+the program scallop.
+
+Scallop (by Danny Calegari and Alden Walker), which uses glpk, gmp, and exlp,
+is provided as part of wallop in the subdirectory ./scallop/
+
+Installation:
+run ./makeall.sh
+This just runs "make" in the current directory and in the scallop directory
+
+You must have Gtk+2.0, gmp, glpk, pkg-config, and probably some other stuff.
+It compiles on Linux with the above packages with everything standard.
+
+For OSX:
+It is possible you will have to do nothing and everything will work.  If not:
+
+If fink is used to install the above packages, you should only need to 
+uncomment the OSXINCLUDE and OSXLIB lines in the makefiles:
+./Makefile
+./scallop/makefile
+./scallop/exlp-package/makefile
+Depending on your installation, you may need to include the argument
+-arch i386
+or 
+-arch x86_64
+in all of the compile lines to force it to compile to a particular architecture.   
+This can occur if fink is installed in 32-bit mode on a 64-bit processor.
+
+
+Known bugs:
+ - Optimizing the whole graph with a graph with a single vertex sometimes causes
+the graph to disappear (to move out of the viewable area) (sometimes)
+ - Graphs with self-loops tend not to adjust their edges quite as well.
+ - The buttons don't appear to depress (though they do work)
+ 
+ 
+ 

@@ -1,0 +1,44 @@
+A fatgraph is specified by listing all the vertices, followed by all the edges.
+Lines starting with # at the beginning of the file are ignored
+The listing is of the form:
+
+
+
+vertices [number]
+label (label must begin with alpha, and it can't be "bezier" or "loc") [number of edges]
+edge names separated by spaces (these are cyclically in order)
+0,1 indicating whether the edge starts here
+[bezier <optional bezier coordinates (MUST AGREE WITH THE CYCLIC ORDER)> ]
+[loc <optional coordinate for this vertex>]
+
+label (label must begin with alpha) [number of edges]
+edge names separated by spaces (these are cyclically in order)
+0,1 indicating whether the edge starts here
+[bezier <optional bezier coordinates (MUST AGREE WITH THE CYCLIC ORDER)> ]
+[loc <optional coordinate for this vertex>]
+
+edges [number]
+edge_name forward_label backward_label initial_vertex final_vertex
+
+
+
+# the vertices all have to have labels because otherwise there's no way to 
+# give a vertex with no edges
+
+example (a torus with vertices on the main arcs, bounding [aa,bb]):
+
+vertices 3
+VERT0 4
+EDGE0 EDGE3 EDGE1 EDGE2
+1 0 0 1
+VERT1 2
+EDGE0 EDGE1
+0 1
+VERT2 2
+EDGE2 EDGE3
+0 1
+edges 4
+EDGE0 a A VERT0 VERT1
+EDGE1 a A VERT1 VERT0
+EDGE2 b B VERT0 VERT2
+EDGE3 b B VERT2 VERT0
