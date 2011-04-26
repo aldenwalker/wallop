@@ -712,7 +712,7 @@ int draw_fatgraph_to_file(fatgraph* fg, char* filename, double width, double hei
                                                   fg->verts[fg->edges[i].end].loc.y);
     fprintf(ofile, "stroke\n");
     fprintf(ofile, "0 0 0 setrgbcolor\n");
-    fprintf(ofile, "6 setlinewidth\n");
+    fprintf(ofile, "8 setlinewidth\n");
     fprintf(ofile, "%f %f moveto\n", fg->verts[fg->edges[i].start].loc.x, 
                                      fg->verts[fg->edges[i].start].loc.y);
     fprintf(ofile, "%f %f %f %f %f %f curveto\n", control1.x, control1.y,
@@ -723,12 +723,12 @@ int draw_fatgraph_to_file(fatgraph* fg, char* filename, double width, double hei
   }
   
   //draw the vertices
-  fprintf(ofile, "10 setlinewidth\n");
+  fprintf(ofile, "11 setlinewidth\n");
   for (i=0; i<fg->num_verts; i++) {
     fprintf(ofile, "%f %f moveto\n", fg->verts[i].loc.x, fg->verts[i].loc.y);
     fprintf(ofile, "%f %f %f %f %f arc\n", fg->verts[i].loc.x, 
                                     fg->verts[i].loc.y,
-                                    5.0,
+                                    4.0,
                                     0.0, 360.0);
     fprintf(ofile, "stroke\n");
   }
