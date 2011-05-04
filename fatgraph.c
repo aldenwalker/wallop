@@ -3,8 +3,9 @@
 #include <string.h>
 #include <math.h>
 
-
+#include "vector2d.h"
 #include "fatgraph.h"
+#include "wallop.h"
 
 /******************************************************************************/
 /* fatgraph functions                                                         */
@@ -119,7 +120,6 @@ void fatgraph_add_edge(fatgraph* fg,
   strcpy(fg->edges[fg->num_edges].label_forward, "x");
   fg->edges[fg->num_edges].label_backward = (char*)malloc(2*sizeof(char));
   strcpy(fg->edges[fg->num_edges].label_backward, "X");
-  
   
   insert_space_int(&(fg->verts[s].edges), fg->verts[s].num_edges, index_in_s);
   insert_space_int(&(fg->verts[s].edges_initial), fg->verts[s].num_edges, index_in_s);
@@ -623,116 +623,323 @@ fatgraph* read_fatgraph_from_file(char* filename, double screen_width,
   return fg;
 } 
 
+/*****************************************************************************/
+/* handy for arrows                                                          */
+/*****************************************************************************/
+void fg_eps_draw_arrow(FILE* ofile, vector2d loc, vector2d tangent, double size) {
+  vector2d normal;
+  normal.x = tangent.y;
+  normal.y = -tangent.x;  
+  fprintf(ofile, "%f %f moveto\n", loc.x - size*0.7*tangent.x + size*0.7*normal.x, 
+                                   loc.y - size*0.7*tangent.y + size*0.7*normal.y);
+  fprintf(ofile, "%f %f lineto\n", loc.x, loc.y);
+  fprintf(ofile, "%f %f lineto\n", loc.x - size*0.7*tangent.x - size*0.7*normal.x, 
+                                   loc.y - size*0.7*tangent.y - size*0.7*normal.y);
+  fprintf(ofile, "stroke\n");
+}
 
 /*****************************************************************************/
 /* draw a fatgraph as an eps file                                            */
 /*****************************************************************************/
 int draw_fatgraph_to_file(fatgraph* fg, char* filename, double width, double height) {
   int i,j;
-  double minx, miny, maxx, maxy, x, y;
-  vector2d bezier1, bezier2, control1, control2;
+  double normalNorm, tangentNorm;
+  vector2d control1, control2, trunc_start, trunc_end, 
+           trunc_start_bezier, trunc_end_bezier, midpoint, tangent, normal,
+           font_offset, arrowCenter;
   
   FILE* ofile = fopen(filename, "w");
   if (ofile == NULL) {
     return 1;
   }
-  //////////////////////////
-  //Fast drawing (just the vertices and edges)
-  ///////////////////////////
-  if (fg->num_verts == 0) {
-    fprintf(ofile, "%%!PS-Adobe-2.0 EPSF-2.0\n");
-    fprintf(ofile, "%%%%BoundingBox: 0 0 %f %f\n\n", width, height);      
-    fprintf(ofile, "1 setlinejoin\n");
-    fprintf(ofile, "2 setlinewidth\n");    
-    fclose(ofile);
-    return 0;
+  
+  char pinfilename[100];
+  strcpy(pinfilename, filename);
+  strcat(pinfilename, ".pinlabel");
+  FILE* pinfile = fopen(pinfilename, "w");
+  if (pinfile == NULL) {
+    return 1;
   }
-  /*
-  //find a good bounding box
-  minx = maxx = fg->verts[0].loc.x;
-  miny = maxy = fg->verts[0].loc.y;
-  for (i=0; i<fg->num_verts; i++) {
-    x = fg->verts[i].loc.x;
-    y = fg->verts[i].loc.y;
-    if (x < minx) {
-      minx = x;
-    } else if (x > maxx) {
-      maxx = x;
-    }
-    if (y < miny) {
-      miny = y;
-    } else if (y > maxy) {
-      maxy = y;
-    }
-  }
-  */
+  
+  vector2d* bezier1 = (vector2d*)malloc((fg->num_edges)*sizeof(vector2d));
+  vector2d* bezier2 = (vector2d*)malloc((fg->num_edges)*sizeof(vector2d));  
     
+  double* edge_arrow_position = (double*)malloc((fg->num_edges)*sizeof(double));
+  
+  double outside_rectangle_width = 25;
+  double rectangle_width = 16;
+  double inside_rectangle_width = 11;
+  
+  
   fprintf(ofile, "%%!PS-Adobe-2.0 EPSF-2.0\n");
   fprintf(ofile, "%%%%BoundingBox: %f %f %f %f\n\n", 0.0, 0.0, width, height);      
   fprintf(ofile, "1 setlinejoin\n");
   fprintf(ofile, "5 setlinewidth\n");
   fprintf(ofile, "0 0 0 setrgbcolor\n");
-  for (i=0; i<fg->num_edges; i++) {
+  fprintf(ofile, "/Time-Roman findfont\n");
+  fprintf(ofile, "12 scalefont\n");
+  fprintf(ofile, "setfont\n");
+  
+  fprintf(ofile, "%% string x y\n");
+  fprintf(ofile, "/center {moveto dup stringwidth pop -2 div 0 rmoveto show} def\n"); 
+  
+  fprintf(pinfile, "\\labellist\n");
+  fprintf(pinfile, "\\small\\hair 2pt\n");  
+  
+  //draw the arcs
+  for (i=0; i<fg->num_edges; i++) {  //this needs to be faster
+    //find the beziers for each edge
     for (j=0; j<fg->verts[fg->edges[i].start].num_edges; j++) {
-      //printf("Looking at edge %d from vertex %d--it's edge %d\n", j, fg->edges[i].start, 
-      //                                                               fg->verts[fg->edges[i].start].edges[j] );
-      //printf("Vertex %d says that edge %d (%d) is initial: %d here\n", fg->edges[i].start,
-      //                                                                 j,
-      //                                                                 fg->verts[fg->edges[i].start].edges[j],
-      //                                                                 fg->verts[fg->edges[i].start].edges_initial[j]);
       if (i == fg->verts[fg->edges[i].start].edges[j] 
           && fg->verts[fg->edges[i].start].edges_initial[j] == 1) {
-        bezier1 = fg->verts[fg->edges[i].start].bezier[j];
+        bezier1[i] = fg->verts[fg->edges[i].start].bezier[j];
         break;
       }
     }
     for (j=0; j<fg->verts[fg->edges[i].end].num_edges; j++) {
-      //printf("Looking at edge %d from vertex %d--it's edge %d\n", j, fg->edges[i].end, 
-      //                                                               fg->verts[fg->edges[i].end].edges[j] );
-      //printf("Vertex %d says that edge %d (%d) is initial: %d here\n", fg->edges[i].end,
-      //                                                                 j,
-      //                                                                 fg->verts[fg->edges[i].end].edges[j],
-      //                                                                 fg->verts[fg->edges[i].end].edges_initial[j]);
       if (i == fg->verts[fg->edges[i].end].edges[j]
           && fg->verts[fg->edges[i].end].edges_initial[j] == 0) {
-        bezier2 = fg->verts[fg->edges[i].end].bezier[j];
+        bezier2[i] = fg->verts[fg->edges[i].end].bezier[j];
         break;
       }
-    }
+    }   
+    
     //set the bezier controls
-    control1 = vector2d_add(fg->verts[fg->edges[i].start].loc, bezier1);
-    control2 = vector2d_add(fg->verts[fg->edges[i].end].loc, bezier2);
+    control1 = vector2d_add(fg->verts[fg->edges[i].start].loc, bezier1[i]);
+    control2 = vector2d_add(fg->verts[fg->edges[i].end].loc, bezier2[i]);
+    
+    
+    //DRAW the middle of all the arcs
+    
+    //draw the outside (white background) arcs
+    sub_bezier(fg->verts[fg->edges[i].start].loc, 
+               fg->verts[fg->edges[i].end].loc,
+               control1, 
+               control2,
+               0.05, 0.95,
+               &(trunc_start),
+               &(trunc_end),
+               &(trunc_start_bezier),
+               &(trunc_end_bezier));
+    fprintf(ofile, "%f setlinewidth\n", outside_rectangle_width);
     fprintf(ofile, "1 1 1 setrgbcolor\n");
-    fprintf(ofile, "16 setlinewidth\n");
-    fprintf(ofile, "%f %f moveto\n", fg->verts[fg->edges[i].start].loc.x, 
-                                     fg->verts[fg->edges[i].start].loc.y);
-    fprintf(ofile, "%f %f %f %f %f %f curveto\n", control1.x, control1.y,
-                                                  control2.x, control2.y,
-                                                  fg->verts[fg->edges[i].end].loc.x,
-                                                  fg->verts[fg->edges[i].end].loc.y);
+    fprintf(ofile, "%f %f moveto\n", trunc_start.x, trunc_start.y);
+    fprintf(ofile, "%f %f %f %f %f %f curveto\n", trunc_start_bezier.x, trunc_start_bezier.y,
+                                                  trunc_end_bezier.x, trunc_end_bezier.y,
+                                                  trunc_end.x,
+                                                  trunc_end.y);
     fprintf(ofile, "stroke\n");
+    
+    //draw the middle arcs
     fprintf(ofile, "0 0 0 setrgbcolor\n");
-    fprintf(ofile, "8 setlinewidth\n");
-    fprintf(ofile, "%f %f moveto\n", fg->verts[fg->edges[i].start].loc.x, 
-                                     fg->verts[fg->edges[i].start].loc.y);
-    fprintf(ofile, "%f %f %f %f %f %f curveto\n", control1.x, control1.y,
-                                                  control2.x, control2.y,
-                                                  fg->verts[fg->edges[i].end].loc.x,
-                                                  fg->verts[fg->edges[i].end].loc.y);
-    fprintf(ofile, "stroke\n");
+    fprintf(ofile, "%f setlinewidth\n", rectangle_width);
+    fprintf(ofile, "%f %f moveto\n", trunc_start.x, trunc_start.y);
+    fprintf(ofile, "%f %f %f %f %f %f curveto\n", trunc_start_bezier.x, trunc_start_bezier.y,
+                                                  trunc_end_bezier.x, trunc_end_bezier.y,
+                                                  trunc_end.x,
+                                                  trunc_end.y);
+    fprintf(ofile, "stroke\n");   
+  
+    //draw the inside arcs
+    fprintf(ofile, "1 1 1 setrgbcolor\n");
+    fprintf(ofile, "%f setlinewidth\n", inside_rectangle_width);
+    fprintf(ofile, "%f %f moveto\n", trunc_start.x, trunc_start.y);
+    fprintf(ofile, "%f %f %f %f %f %f curveto\n", trunc_start_bezier.x, trunc_start_bezier.y,
+                                                  trunc_end_bezier.x, trunc_end_bezier.y,
+                                                  trunc_end.x,
+                                                  trunc_end.y);
+    fprintf(ofile, "stroke\n");   
+  
   }
   
-  //draw the vertices
-  fprintf(ofile, "11 setlinewidth\n");
-  for (i=0; i<fg->num_verts; i++) {
-    fprintf(ofile, "%f %f moveto\n", fg->verts[i].loc.x, fg->verts[i].loc.y);
-    fprintf(ofile, "%f %f %f %f %f arc\n", fg->verts[i].loc.x, 
-                                    fg->verts[i].loc.y,
-                                    4.0,
-                                    0.0, 360.0);
-    fprintf(ofile, "stroke\n");
+  
+  //now go back and fill in the ends
+  //first, the backgrounds
+  for (i=0; i<fg->num_edges; i++) {  //this needs to be faster
+    //set the bezier controls
+    control1 = vector2d_add(fg->verts[fg->edges[i].start].loc, bezier1[i]);
+    control2 = vector2d_add(fg->verts[fg->edges[i].end].loc, bezier2[i]);
+    //start
+    sub_bezier(fg->verts[fg->edges[i].start].loc, 
+               fg->verts[fg->edges[i].end].loc,
+               control1, 
+               control2,
+               0, 0.05,
+               &(trunc_start),
+               &(trunc_end),
+               &(trunc_start_bezier),
+               &(trunc_end_bezier));
+    fprintf(ofile, "0 0 0 setrgbcolor\n");
+    fprintf(ofile, "%f setlinewidth\n", rectangle_width);
+    fprintf(ofile, "%f %f moveto\n", trunc_start.x, trunc_start.y);
+    fprintf(ofile, "%f %f %f %f %f %f curveto\n", trunc_start_bezier.x, trunc_start_bezier.y,
+                                                  trunc_end_bezier.x, trunc_end_bezier.y,
+                                                  trunc_end.x,
+                                                  trunc_end.y);
+    fprintf(ofile, "stroke\n");   
+    //end
+    sub_bezier(fg->verts[fg->edges[i].start].loc, 
+               fg->verts[fg->edges[i].end].loc,
+               control1, 
+               control2,
+               0.95, 1,
+               &(trunc_start),
+               &(trunc_end),
+               &(trunc_start_bezier),
+               &(trunc_end_bezier));
+    fprintf(ofile, "0 0 0 setrgbcolor\n");
+    fprintf(ofile, "%f setlinewidth\n", rectangle_width);
+    fprintf(ofile, "%f %f moveto\n", trunc_start.x, trunc_start.y);
+    fprintf(ofile, "%f %f %f %f %f %f curveto\n", trunc_start_bezier.x, trunc_start_bezier.y,
+                                                  trunc_end_bezier.x, trunc_end_bezier.y,
+                                                  trunc_end.x,
+                                                  trunc_end.y);
+    fprintf(ofile, "stroke\n");   
+  } 
+  
+    //now, the white part, the backgrounds
+  for (i=0; i<fg->num_edges; i++) {  
+    //set the bezier controls
+    control1 = vector2d_add(fg->verts[fg->edges[i].start].loc, bezier1[i]);
+    control2 = vector2d_add(fg->verts[fg->edges[i].end].loc, bezier2[i]);
+    //start
+    sub_bezier(fg->verts[fg->edges[i].start].loc, 
+               fg->verts[fg->edges[i].end].loc,
+               control1, 
+               control2,
+               0, 0.052,
+               &(trunc_start),
+               &(trunc_end),
+               &(trunc_start_bezier),
+               &(trunc_end_bezier));
+    fprintf(ofile, "1 1 1 setrgbcolor\n");
+    fprintf(ofile, "%f setlinewidth\n", inside_rectangle_width);
+    fprintf(ofile, "%f %f moveto\n", trunc_start.x, trunc_start.y);
+    fprintf(ofile, "%f %f %f %f %f %f curveto\n", trunc_start_bezier.x, trunc_start_bezier.y,
+                                                  trunc_end_bezier.x, trunc_end_bezier.y,
+                                                  trunc_end.x,
+                                                  trunc_end.y);
+    fprintf(ofile, "stroke\n");   
+    //end
+    sub_bezier(fg->verts[fg->edges[i].start].loc, 
+               fg->verts[fg->edges[i].end].loc,
+               control1, 
+               control2,
+               0.948, 1,
+               &(trunc_start),
+               &(trunc_end),
+               &(trunc_start_bezier),
+               &(trunc_end_bezier));
+    fprintf(ofile, "1 1 1 setrgbcolor\n");
+    fprintf(ofile, "%f setlinewidth\n", inside_rectangle_width);
+    fprintf(ofile, "%f %f moveto\n", trunc_start.x, trunc_start.y);
+    fprintf(ofile, "%f %f %f %f %f %f curveto\n", trunc_start_bezier.x, trunc_start_bezier.y,
+                                                  trunc_end_bezier.x, trunc_end_bezier.y,
+                                                  trunc_end.x,
+                                                  trunc_end.y);
+    fprintf(ofile, "stroke\n");   
+  } 
+  
+  
+      
+  //decorate the arcs with letters and arrows
+  fprintf(ofile, "1 1 1 setrgbcolor\n");
+  for (i=0; i<fg->num_edges; i++) {
+  
+    //find the best positions for the arrows
+    edge_arrow_position[i] = fatgraph_remotest(fg, i);  
+    
+    //letter 1
+    control1 = vector2d_add(fg->verts[fg->edges[i].start].loc, bezier1[i]);
+    control2 = vector2d_add(fg->verts[fg->edges[i].end].loc, bezier2[i]);
+    point_and_tangent_to_bezier(fg->verts[fg->edges[i].start].loc,
+                                fg->verts[fg->edges[i].end].loc,
+                                control1,
+                                control2,
+                                edge_arrow_position[i],
+                                &midpoint,
+                                &tangent);
+    normal.x = tangent.y; 
+    normal.y = -tangent.x;
+    normalNorm = sqrt((normal.x * normal.x) + (normal.y * normal.y));
+    font_offset.x = normal.x * 1.5*(rectangle_width)/normalNorm;
+    font_offset.y = normal.y * 1.5*(rectangle_width)/normalNorm;
+    //fprintf(ofile, "(%s) %f %f center\n", fg->edges[i].label_backward, 
+    //                                 midpoint.x + font_offset.x, 
+    //                                 midpoint.y + font_offset.y);
+    fprintf(pinfile, "\\pinlabel $%s$ at %f %f\n", fg->edges[i].label_forward,
+                                                midpoint.x + font_offset.x,
+                                                midpoint.y + font_offset.y);
+    
+    
+    //letter 2
+    point_and_tangent_to_bezier(fg->verts[fg->edges[i].start].loc,
+                                fg->verts[fg->edges[i].end].loc,
+                                control1,
+                                control2,
+                                edge_arrow_position[i],
+                                &midpoint,
+                                &tangent);
+    normal.x = tangent.y; 
+    normal.y = -tangent.x;
+    normalNorm = sqrt((normal.x * normal.x) + (normal.y * normal.y));   
+    font_offset.x = normal.x * 1.5*(rectangle_width)/normalNorm;
+    font_offset.y = normal.y * 1.5*(rectangle_width)/normalNorm;    
+    //fprintf(ofile, "(%s) %f %f center\n", fg->edges[i].label_backward, 
+    //                                 midpoint.x - font_offset.x, 
+    //                                 midpoint.y - font_offset.y);
+    fprintf(pinfile, "\\pinlabel $%s$ at %f %f\n", fg->edges[i].label_backward,
+                                                midpoint.x - font_offset.x,
+                                                midpoint.y - font_offset.y);
+  
+    //decorate the arcs with arrows
+    //forward arrow
+    point_and_tangent_to_bezier(fg->verts[fg->edges[i].start].loc,
+                                fg->verts[fg->edges[i].end].loc,
+                                control1,
+                                control2,
+                                edge_arrow_position[i],
+                                &midpoint,
+                                &tangent);
+    tangentNorm = sqrt((tangent.x * tangent.x) + (tangent.y * tangent.y));
+    tangent.x /= tangentNorm;
+    tangent.y /= tangentNorm;
+    normal.x = tangent.y;
+    normal.y = -tangent.x;
+    arrowCenter.x = midpoint.x + normal.x * (inside_rectangle_width/2);
+    arrowCenter.y = midpoint.y + normal.y * (inside_rectangle_width/2);
+    fprintf(ofile, "0 0 0 setrgbcolor\n");
+    fprintf(ofile, "%f setlinewidth\n", (rectangle_width - inside_rectangle_width)/3);
+    fg_eps_draw_arrow(ofile, arrowCenter, tangent, 8);
+    
+    //backward arrow
+    point_and_tangent_to_bezier(fg->verts[fg->edges[i].start].loc,
+                                fg->verts[fg->edges[i].end].loc,
+                                control1,
+                                control2,
+                                edge_arrow_position[i],
+                                &midpoint,
+                                &tangent);
+    tangentNorm = sqrt((tangent.x * tangent.x) + (tangent.y * tangent.y));
+    tangent.x /= -tangentNorm;
+    tangent.y /= -tangentNorm;
+    normal.x = tangent.y;
+    normal.y = -tangent.x;
+    arrowCenter.x = midpoint.x + normal.x * (inside_rectangle_width/2);
+    arrowCenter.y = midpoint.y + normal.y * (inside_rectangle_width/2);
+    fprintf(ofile, "%f setlinewidth\n", (rectangle_width - inside_rectangle_width)/3);
+    fg_eps_draw_arrow(ofile, arrowCenter, tangent, 8);   
+  
   }
+  
+  fprintf(pinfile, "\\endlabellist\n");
+  
   fclose(ofile);
+  fclose(pinfile);
+  free(bezier1);
+  free(bezier2);
+  free(edge_arrow_position);
+  
   return 0;
   
 }
