@@ -1,3 +1,6 @@
+Version 0.8 - May 4, 2011 by Alden
+  - implemented saving better graph to eps with pinlabel file
+
 Version 0.7 - January 14, 2011 by Alden
   - implemented saving simple graph to eps file
 
