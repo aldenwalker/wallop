@@ -50,7 +50,7 @@ void fatgraph_next_edge(fatgraph* fg, int* edge, int* dir);
 char* fatgraph_follow_edge(fatgraph* fg, int dir, int edge, int* edges_remaining);
 char** fatgraph_boundaries(fatgraph* fg, int* numBoundaries);
 fatgraph* read_fatgraph_from_file(char* filename, double screen_width, double screen_height);
-int write_fatgraph_to_file(fatgraph* fg, char* filename);
-int draw_fatgraph_to_file(fatgraph* fg, char* filename, double width, double height);
+//int write_fatgraph_to_file(fatgraph* fg, char* filename);
+//int draw_fatgraph_to_file(fatgraph* fg, char* filename, double width, double height);
 
 #endif

@@ -7,7 +7,7 @@
 #include "vector2d.h"
 #include "fatgraph.h"
 #include "op.h"
-#include "io.h"
+//#include "io.h"
 #include "wallop.h"
 
  
