@@ -775,7 +775,7 @@ void collect_boundaries(char** boundaries, int* numBoundaries, int* n) {
 
 void fatgraph_update_data_fields(fatgraph* fg, widgetList* widgets) {
   GtkTextBuffer* dataView = gtk_text_view_get_buffer(widgets->dataTextView);
-  char* newDataText = (char*)malloc(200*sizeof(char));
+  char* newDataText = (char*)malloc(2000*sizeof(char));
   char tempString[20];
   char** boundaries;
   int* n = NULL;
