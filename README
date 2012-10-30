@@ -1,7 +1,7 @@
 wallop
 Version 0.9 beta
-Copyright GPL 2010, 2011 by Alden Walker
-awalker@caltech.edu
+Copyright GPL 2010, 2011, 2012 by Alden Walker
+akwalker@math.uchicago.edu
 
 Wallop is a Gtk+2.0 application to display fatgraphs, especially the output of
 the program scallop.
@@ -14,6 +14,15 @@ type "make"
 
 You must have Gtk+2.0, gmp, glpk, pkg-config, and probably some other stuff.
 It compiles on Linux with the above packages with everything standard.
+
+Loading and saving:
+Type the location of a fatgraph file and click load to load.  Click save to save.
+There is no overwrite protection, etc, whatsoever.  Click save eps to write 
+an eps file.  It also writes pinlabels for inclusion in latex.  The eps 
+output contains text labels.  To remove them, change the line 
+indicated in the eps file.  Note there's no overwrite protection on saving 
+eps files, either, so it'll happily overwrite your .fg file with an eps file.
+
 
 For OSX:
 It is possible you will have to do nothing and everything will work.

@@ -1,3 +1,6 @@
+Version 0.9 - October 30, 2012 by Alden
+  - implemented even better eps file with optional text labels
+
 Version 0.8 - May 4, 2011 by Alden
   - implemented saving better graph to eps with pinlabel file
 
