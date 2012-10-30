@@ -676,12 +676,18 @@ int draw_fatgraph_to_file(fatgraph* fg, char* filename, double width, double hei
   fprintf(ofile, "1 setlinejoin\n");
   fprintf(ofile, "5 setlinewidth\n");
   fprintf(ofile, "0 0 0 setrgbcolor\n");
-  fprintf(ofile, "/Time-Roman findfont\n");
+  fprintf(ofile, "/Helvetica findfont\n");
   fprintf(ofile, "12 scalefont\n");
   fprintf(ofile, "setfont\n");
-  
+  fprintf(ofile, "%% change the next line from true to false to hide the text\n");
+  fprintf(ofile, "/write_letters true def\n");
   fprintf(ofile, "%% string x y\n");
   fprintf(ofile, "/center {moveto dup stringwidth pop -2 div 0 rmoveto show} def\n"); 
+  fprintf(ofile, "/textcenter {/y_pos exch def /x_pos exch def /to_print exch def\n");
+  fprintf(ofile, "0 0 moveto gsave to_print false charpath flattenpath pathbbox grestore\n");
+  fprintf(ofile, "/y_height exch def /x_width exch def pop pop\n");
+  fprintf(ofile, "x_pos x_width 2 div sub y_pos y_height 2 div sub moveto to_print show} def\n");
+  //fprintf(ofile, "/dot 2 0 360 arc def\n");
   
   fprintf(pinfile, "\\labellist\n");
   fprintf(pinfile, "\\small\\hair 2pt\n");  
@@ -843,7 +849,7 @@ int draw_fatgraph_to_file(fatgraph* fg, char* filename, double width, double hei
   
       
   //decorate the arcs with letters and arrows
-  fprintf(ofile, "1 1 1 setrgbcolor\n");
+  fprintf(ofile, "0 0 0 setrgbcolor\n");
   for (i=0; i<fg->num_edges; i++) {
   
     //find the best positions for the arrows
@@ -862,11 +868,15 @@ int draw_fatgraph_to_file(fatgraph* fg, char* filename, double width, double hei
     normal.x = tangent.y; 
     normal.y = -tangent.x;
     normalNorm = sqrt((normal.x * normal.x) + (normal.y * normal.y));
-    font_offset.x = normal.x * 1.5*(rectangle_width)/normalNorm;
-    font_offset.y = normal.y * 1.5*(rectangle_width)/normalNorm;
-    //fprintf(ofile, "(%s) %f %f center\n", fg->edges[i].label_backward, 
-    //                                 midpoint.x + font_offset.x, 
-    //                                 midpoint.y + font_offset.y);
+    font_offset.x = normal.x * 1.1*(rectangle_width)/normalNorm;
+    font_offset.y = normal.y * 1.1*(rectangle_width)/normalNorm;
+    //compute the width of the text in order to center it
+    //fprintf(ofile, "/x_offset (%s) stringwidth pop 2 div def\n", fg->edges[i].label_forward);
+    fprintf(ofile, "write_letters ");
+    fprintf(ofile, "{ (%s) %f %f textcenter } if\n", fg->edges[i].label_forward, 
+                                                 midpoint.x + font_offset.x, 
+                                                 midpoint.y + font_offset.y);
+    //fprintf(ofile, "%f %f 5 0 360 arc stroke\n", midpoint.x + font_offset.x, midpoint.y + font_offset.y);
     fprintf(pinfile, "\\pinlabel $%s$ at %f %f\n", fg->edges[i].label_forward,
                                                 midpoint.x + font_offset.x,
                                                 midpoint.y + font_offset.y);
@@ -883,17 +893,22 @@ int draw_fatgraph_to_file(fatgraph* fg, char* filename, double width, double hei
     normal.x = tangent.y; 
     normal.y = -tangent.x;
     normalNorm = sqrt((normal.x * normal.x) + (normal.y * normal.y));   
-    font_offset.x = normal.x * 1.5*(rectangle_width)/normalNorm;
-    font_offset.y = normal.y * 1.5*(rectangle_width)/normalNorm;    
-    //fprintf(ofile, "(%s) %f %f center\n", fg->edges[i].label_backward, 
-    //                                 midpoint.x - font_offset.x, 
-    //                                 midpoint.y - font_offset.y);
+    font_offset.x = normal.x * 1.1*(rectangle_width)/normalNorm;
+    font_offset.y = normal.y * 1.1*(rectangle_width)/normalNorm;    
+    //compute the width of the text in order to center it
+    //fprintf(ofile, "/x_offset (%s) stringwidth pop 2 div def\n", fg->edges[i].label_backward);
+    fprintf(ofile, "write_letters ");
+    fprintf(ofile, "{ (%s) %f %f textcenter } if\n", fg->edges[i].label_backward, 
+                                                              midpoint.x - font_offset.x, 
+                                                              midpoint.y - font_offset.y);
+    //fprintf(ofile, "%f %f 5 0 360 arc stroke\n", midpoint.x - font_offset.x, midpoint.y - font_offset.y);
     fprintf(pinfile, "\\pinlabel $%s$ at %f %f\n", fg->edges[i].label_backward,
                                                 midpoint.x - font_offset.x,
                                                 midpoint.y - font_offset.y);
   
     //decorate the arcs with arrows
     //forward arrow
+    double average_rectangle_width = (rectangle_width + inside_rectangle_width)/2.0;
     point_and_tangent_to_bezier(fg->verts[fg->edges[i].start].loc,
                                 fg->verts[fg->edges[i].end].loc,
                                 control1,
@@ -906,9 +921,9 @@ int draw_fatgraph_to_file(fatgraph* fg, char* filename, double width, double hei
     tangent.y /= tangentNorm;
     normal.x = tangent.y;
     normal.y = -tangent.x;
-    arrowCenter.x = midpoint.x + normal.x * (inside_rectangle_width/2);
-    arrowCenter.y = midpoint.y + normal.y * (inside_rectangle_width/2);
-    fprintf(ofile, "0 0 0 setrgbcolor\n");
+    arrowCenter.x = midpoint.x + normal.x * (average_rectangle_width/2);
+    arrowCenter.y = midpoint.y + normal.y * (average_rectangle_width/2);
+    //fprintf(ofile, "0 0 0 setrgbcolor\n");
     fprintf(ofile, "%f setlinewidth\n", (rectangle_width - inside_rectangle_width)/3);
     fg_eps_draw_arrow(ofile, arrowCenter, tangent, 8);
     
@@ -925,8 +940,8 @@ int draw_fatgraph_to_file(fatgraph* fg, char* filename, double width, double hei
     tangent.y /= -tangentNorm;
     normal.x = tangent.y;
     normal.y = -tangent.x;
-    arrowCenter.x = midpoint.x + normal.x * (inside_rectangle_width/2);
-    arrowCenter.y = midpoint.y + normal.y * (inside_rectangle_width/2);
+    arrowCenter.x = midpoint.x + normal.x * (average_rectangle_width/2);
+    arrowCenter.y = midpoint.y + normal.y * (average_rectangle_width/2);
     fprintf(ofile, "%f setlinewidth\n", (rectangle_width - inside_rectangle_width)/3);
     fg_eps_draw_arrow(ofile, arrowCenter, tangent, 8);   
   
