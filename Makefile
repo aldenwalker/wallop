@@ -18,14 +18,14 @@ vector2d.o : vector2d.c
 	gcc -c vector2d.c $(CFLAGS) $(OSXARGS) `pkg-config --cflags --libs gtk+-2.0`
 
 wallop : wallop.o op.o vector2d.o fatgraph.o
-	gcc $(CFLAGS) $(OSXARGS) -o wallop wallop.o op.o vector2d.o fatgraph.o `pkg-config --cflags --libs gtk+-2.0`
+	gcc $(CFLAGS) $(OSXARGS) -o wallop wallop.o op.o vector2d.o fatgraph.o -lm `pkg-config --cflags --libs gtk+-2.0`
 
 .PHONY : scallop
 scallop :
 	cd scallop; make
 
 clean : 
-	rm wallop
 	rm *.o
+	rm wallop
 	cd scallop; make clean
 

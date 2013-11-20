@@ -462,6 +462,68 @@ int write_fatgraph_to_file(fatgraph* fg, char* filename) {
 }
   
 
+  
+fatgraph* read_fatgraph_from_file_new(char* filename, double screen_width,
+                                                      double screen_height) {
+  fatgraph* fg = NULL;
+  FILE* ifile = fopen(filename, "r");
+  if (ifile == NULL) {
+    return NULL;
+  }
+  char temps[100];
+  char temp_edge_name[100];
+  char temp_label_forward[100];
+  char temp_label_backward[100];
+  int tempi;
+  double th;
+  int i,j;
+  
+  fg = (fatgraph*)malloc(sizeof(fatgraph));
+  
+  fscanf(ifile, "%d %d\n", &fg->num_verts, &fg->num_edges);
+  fg->verts = (vert*)malloc((fg->num_verts)*sizeof(vert));
+  fg->edges = (edge*)malloc((fg->num_edges)*sizeof(edge));
+  for (i=0; i<fg->num_verts; ++i) {
+    sprintf(temps, "VERT%d", i);
+    fg->verts[i].name = (char*)malloc((strlen(temps)+1)*sizeof(char));
+    strcpy(fg->verts[i].name, temps);
+    fscanf(ifile, "%d", &fg->verts[i].num_edges);
+    fg->verts[i].edges = (int*)malloc((fg->verts[i].num_edges)*sizeof(int));
+    fg->verts[i].edges_initial = (int*)malloc((fg->verts[i].num_edges)*sizeof(int));
+    fg->verts[i].bezier = (vector2d*)malloc((fg->verts[i].num_edges)*sizeof(vector2d));
+    th = 0;
+    for (j=0; j<fg->verts[i].num_edges; ++j) {
+      fscanf(ifile, "%d", &tempi);
+      fg->verts[i].edges[j] = (tempi > 0 ? tempi-1 : (-tempi)-1);
+      fg->verts[i].edges_initial[j] = (tempi > 0 ? 1 : 0);
+      //make up a bezier
+      th += 6.3/(double)fg->verts[i].num_edges;
+      fg->verts[i].bezier[j].x = cos(th);
+      fg->verts[i].bezier[j].y = sin(th);
+    }
+    //make up a location
+    fg->verts[i].loc.x = (rand()/(double)RAND_MAX)*screen_width;
+    fg->verts[i].loc.y = (rand()/(double)RAND_MAX)*screen_height;
+  }
+  
+  for (i=0; i<fg->num_edges; ++i) {
+    sprintf(temp_edge_name, "EDGE%d", i);
+    fscanf(ifile, "%d %d %s %s\n", &fg->edges[i].start, 
+                                   &fg->edges[i].end, 
+                                   temp_label_forward,
+                                   temp_label_backward);
+    fg->edges[i].name = (char*)malloc((strlen(temp_edge_name)+1)*sizeof(char));
+    fg->edges[i].label_forward = (char*)malloc((strlen(temp_label_forward)+1)*sizeof(char));
+    fg->edges[i].label_backward = (char*)malloc((strlen(temp_label_backward)+1)*sizeof(char));
+    strcpy(fg->edges[i].name, temp_edge_name);
+    strcpy(fg->edges[i].label_forward, temp_label_forward);
+    strcpy(fg->edges[i].label_backward, temp_label_backward);
+  }
+    
+  return fg;
+}
+
+  
 fatgraph* read_fatgraph_from_file(char* filename, double screen_width,
                                                   double screen_height) {
   fatgraph* fg = NULL;
@@ -489,6 +551,12 @@ fatgraph* read_fatgraph_from_file(char* filename, double screen_width,
   }
   fseek(ifile, -1, SEEK_CUR);
   
+  tempc = fgetc(ifile);
+  if (tempc == '\n') tempc = fgetc(ifile);
+  if (tempc != 'v') {
+    return read_fatgraph_from_file_new(filename, screen_width, screen_height);
+  }  
+  ungetc(tempc, ifile);
   
   fscanf(ifile, "vertices %d\n", &(fg->num_verts));
   fg->verts = (vert*)malloc((fg->num_verts)*sizeof(vert));
