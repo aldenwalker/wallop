@@ -477,7 +477,8 @@ fatgraph* read_fatgraph_from_file_new(char* filename, double screen_width,
   int tempi;
   double th;
   int i,j;
-  
+  double temp_pos_x, temp_pos_y;
+
   fg = (fatgraph*)malloc(sizeof(fatgraph));
   
   fscanf(ifile, "%d %d\n", &fg->num_verts, &fg->num_edges);
@@ -519,7 +520,16 @@ fatgraph* read_fatgraph_from_file_new(char* filename, double screen_width,
     strcpy(fg->edges[i].label_forward, temp_label_forward);
     strcpy(fg->edges[i].label_backward, temp_label_backward);
   }
-    
+  
+  for (i=0; i<fg->num_verts; ++i) {
+    if (EOF == fscanf(ifile, "%lf %lf\n", &temp_pos_x, &temp_pos_y)) {
+      return fg;
+    }
+    //we got position data for this vertex
+    fg->verts[i].loc.x = temp_pos_x;
+    fg->verts[i].loc.y = temp_pos_y;
+  }
+   
   return fg;
 }
 
