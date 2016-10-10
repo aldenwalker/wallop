@@ -1,4 +1,4 @@
-OSXARGS = -I/sw/include -L/sw/lib
+OSXARGS = -I/sw/include -I/opt/local/include -L/sw/lib -L/opt/local/lib
 CFLAGS = -O2
 all : wallop scallop
 
